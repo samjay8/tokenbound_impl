@@ -1,1 +1,3 @@
 soroban.tar.gz
+node_modules/
+.husky/_/
