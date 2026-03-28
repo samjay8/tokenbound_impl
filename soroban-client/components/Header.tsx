@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 
 import { useWallet } from "@/contexts/WalletContext";
-import type { WalletProviderId } from '@/contexts/walletAdapters';
+import type { WalletProviderId } from "@/contexts/walletAdapters";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -27,7 +27,6 @@ export default function Header() {
     setProviderId,
   } = useWallet();
   const pathname = usePathname();
-  const { address, isConnected, isInstalled, connect, disconnect } = useWallet();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
@@ -38,8 +37,8 @@ export default function Header() {
     setProviderId(selectedProviderId);
     try {
       await connect(selectedProviderId);
-    } catch (err) {
-      console.error("Could not connect to provider", selectedProviderId, err);
+    } catch {
+      /* connect() already surfaced error */
     } finally {
       closeWalletModal();
     }
@@ -55,12 +54,9 @@ export default function Header() {
     }
     try {
       await connect(providerId);
-    } catch (err) {
-      console.error("Connect error", err);
+    } catch {
       openWalletModal();
     }
-
-    await connect();
   };
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -69,13 +65,11 @@ export default function Header() {
     if (action) {
       await action();
     }
-
     closeMenu();
   };
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? "hidden" : "";
-
     return () => {
       document.body.style.overflow = "";
     };
@@ -104,24 +98,24 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
-          <Link
-            href="#"
-            className="text-gray-200 hover:text-white font-medium transition"
-          >
-            Events
-          </Link>
-          <Link
-            href="#"
-            className="text-gray-200 hover:text-white font-medium transition"
-          >
-            Marketplace
-          </Link>
+        <nav className="hidden items-center gap-8 md:flex">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`font-medium transition ${
+                pathname === link.href
+                  ? "text-white"
+                  : "text-gray-200 hover:text-white"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
           {isConnected && (
             <Link
               href="/dashboard"
-              className="text-gray-200 hover:text-white font-medium transition"
+              className="font-medium text-gray-200 transition hover:text-white"
             >
               Dashboard
             </Link>
@@ -135,6 +129,7 @@ export default function Header() {
                 {formatAddress(address!)}
               </span>
               <button
+                type="button"
                 onClick={disconnect}
                 className="rounded-lg border border-gray-400 px-6 py-2 font-medium text-white transition hover:bg-white/10"
               >
@@ -143,6 +138,7 @@ export default function Header() {
             </div>
           ) : (
             <button
+              type="button"
               onClick={handleConnect}
               className="rounded-lg border border-gray-400 px-6 py-2 font-medium text-white transition hover:bg-white/10"
             >
@@ -150,23 +146,27 @@ export default function Header() {
             </button>
           )}
 
-          <Link href="/create-event" className="bg-[#FF5722] hover:bg-[#F4511E] text-white px-6 py-2 rounded-lg font-bold shadow-md transition text-center inline-block">
           <Link
             href="/create-event"
-            className="rounded-lg bg-[#FF5722] px-6 py-2 font-bold text-white shadow-md transition hover:bg-[#F4511E]"
+            className="inline-block rounded-lg bg-[#FF5722] px-6 py-2 text-center font-bold text-white shadow-md transition hover:bg-[#F4511E]"
           >
             Create Events
           </Link>
         </div>
 
         <button
+          type="button"
           onClick={() => setIsMenuOpen((current) => !current)}
           className="flex items-center justify-center rounded-lg p-2 transition hover:bg-white/10 md:hidden"
           aria-label="Toggle navigation menu"
           aria-expanded={isMenuOpen}
           aria-controls="mobile-menu"
         >
-          {isMenuOpen ? <X size={24} className="text-white" /> : <Menu size={24} className="text-white" />}
+          {isMenuOpen ? (
+            <X size={24} className="text-white" />
+          ) : (
+            <Menu size={24} className="text-white" />
+          )}
         </button>
       </div>
 
@@ -192,6 +192,7 @@ export default function Header() {
         <div className="flex items-center justify-between px-4 py-4">
           <div className="text-xl font-bold text-white">Menu</div>
           <button
+            type="button"
             onClick={closeMenu}
             className="rounded-lg p-2 transition hover:bg-white/10"
             aria-label="Close menu"
@@ -218,6 +219,15 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+            {isConnected && (
+              <Link
+                href="/dashboard"
+                className="block rounded-2xl px-4 py-3 text-lg font-medium text-gray-200 transition hover:bg-white/5 hover:text-white"
+                onClick={() => handleMenuAction()}
+              >
+                Dashboard
+              </Link>
+            )}
           </div>
 
           <div className="border-t border-gray-600 py-4" />
@@ -229,6 +239,7 @@ export default function Header() {
                   {formatAddress(address!)}
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleMenuAction(disconnect)}
                   className="w-full rounded-2xl border border-gray-400 px-4 py-4 font-medium text-white transition hover:bg-white/10"
                 >
@@ -237,6 +248,7 @@ export default function Header() {
               </>
             ) : (
               <button
+                type="button"
                 onClick={() => handleMenuAction(handleConnect)}
                 className="w-full rounded-2xl border border-gray-400 px-4 py-4 font-medium text-white transition hover:bg-white/10"
               >
@@ -246,8 +258,6 @@ export default function Header() {
 
             <Link
               href="/create-event"
-              onClick={handleMenuItemClick}
-              className="w-full block bg-[#FF5722] hover:bg-[#F4511E] text-white px-4 py-3 rounded-lg font-bold shadow-md transition text-center"
               onClick={() => handleMenuAction()}
               className="block w-full rounded-2xl bg-[#FF5722] px-4 py-4 text-center font-bold text-white shadow-md transition hover:bg-[#F4511E]"
             >
@@ -257,13 +267,16 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Wallet Selection Modal */}
       {isWalletModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-[#252525] rounded-xl p-4 w-full max-w-md text-white shadow-xl">
-            <div className="flex justify-between items-center mb-3">
+          <div className="w-full max-w-md rounded-xl bg-[#252525] p-4 text-white shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-bold">Choose Wallet Provider</h3>
-              <button onClick={closeWalletModal} className="text-white hover:text-gray-300">
+              <button
+                type="button"
+                onClick={closeWalletModal}
+                className="text-white hover:text-gray-300"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -272,20 +285,32 @@ export default function Header() {
               {availableProviders.map((provider) => (
                 <button
                   key={provider.id}
+                  type="button"
                   onClick={() => {
-                    if (provider.installed) handleProviderSelect(provider.id);
-                    else window.open(provider.installUrl, "_blank");
+                    if (provider.installed) {
+                      void handleProviderSelect(provider.id);
+                    } else {
+                      window.open(provider.installUrl, "_blank");
+                    }
                   }}
-                  className={`w-full text-left rounded-lg border p-3 transition ${
+                  className={`w-full rounded-lg border p-3 text-left transition ${
                     provider.id === providerId ? "border-blue-400" : "border-gray-600"
-                  } ${provider.installed ? "hover:border-blue-300" : "opacity-70 cursor-pointer"}`}
+                  } ${
+                    provider.installed
+                      ? "cursor-pointer hover:border-blue-300"
+                      : "cursor-pointer opacity-70"
+                  }`}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <div>
                       <div className="font-semibold">{provider.name}</div>
-                      <div className="text-xs text-gray-300">{provider.description}</div>
+                      <div className="text-xs text-gray-300">
+                        {provider.description}
+                      </div>
                     </div>
-                    <div className="text-xs">{provider.installed ? "Available" : "Install"}</div>
+                    <div className="text-xs">
+                      {provider.installed ? "Available" : "Install"}
+                    </div>
                   </div>
                 </button>
               ))}
