@@ -109,7 +109,6 @@ impl EventManager {
         if env.storage().instance().has(&DataKey::TicketFactory) {
             return Err(Error::AlreadyInitialized);
         }
-
         env.storage()
             .instance()
             .set(&DataKey::TicketFactory, &ticket_factory);
@@ -129,7 +128,6 @@ impl EventManager {
             return Err(Error::InvalidEndDate);
         }
 
-        // Build resolved tiers
         let resolved_tiers = if params.tiers.is_empty() {
             let mut v = Vec::new(&env);
             v.push_back(TicketTier {
@@ -158,7 +156,6 @@ impl EventManager {
             v
         };
 
-        // Compute aggregate totals from tiers
         let agg_total: u128 = resolved_tiers.iter().map(|t| t.total_quantity).sum();
         let agg_price = resolved_tiers
             .first()
@@ -196,6 +193,10 @@ impl EventManager {
             .set(&DataKey::EventTiers(event_id), &resolved_tiers);
 
         Self::extend_persistent_ttl(&env, &DataKey::Event(event_id));
+        Self::extend_persistent_ttl(&env, &DataKey::EventTiers(event_id));
+        env.storage()
+            .instance()
+            .extend_ttl(Self::ttl_threshold(), Self::ttl_extend_to());
 
         env.events().publish(
             (Symbol::new(&env, "event_created"),),
@@ -323,6 +324,7 @@ impl EventManager {
             .get(&DataKey::BuyerPurchase(event_id, claimer.clone()))
             .ok_or(Error::NotABuyer)?;
 
+        // Mark refund claimed before transfer (checks-effects-interactions)
         env.storage()
             .persistent()
             .set(&DataKey::RefundClaimed(event_id, claimer.clone()), &true);
@@ -330,7 +332,22 @@ impl EventManager {
 
         if purchase.total_paid > 0 {
             let token_client = soroban_sdk::token::Client::new(&env, &event.payment_token);
-            token_client.transfer(&event.organizer, &claimer, &purchase.total_paid);
+            token_client.transfer(
+                &env.current_contract_address(),
+                &claimer,
+                &purchase.total_paid,
+            );
+
+            // Deduct refunded amount from the escrowed balance
+            let balance_key = DataKey::EventBalance(event_id);
+            let current_balance: i128 = env
+                .storage()
+                .persistent()
+                .get(&balance_key)
+                .unwrap_or(0);
+            env.storage()
+                .persistent()
+                .set(&balance_key, &current_balance.saturating_sub(purchase.total_paid));
         }
 
         env.events().publish(
@@ -444,6 +461,7 @@ impl EventManager {
         Ok(())
     }
 
+    /// Update tickets sold count. Only callable by the ticket NFT contract.
     pub fn update_tickets_sold(env: Env, event_id: u32, amount: u128) -> Result<(), Error> {
         let mut event: Event = env
             .storage()
@@ -549,6 +567,65 @@ impl EventManager {
         Ok(())
     }
 
+    /// Withdraw accumulated ticket sale funds to the organizer wallet.
+    ///
+    /// Rules:
+    /// - Only callable by the event organizer
+    /// - Only after the event `end_date` has passed
+    /// - Only if the event has not been cancelled (cancelled events use `claim_refund`)
+    /// - Prevents double withdrawal via a persistent flag
+    pub fn withdraw_funds(env: Env, event_id: u32) -> Result<(), Error> {
+        let event: Event = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Event(event_id))
+            .ok_or(Error::EventNotFound)?;
+
+        event.organizer.require_auth();
+
+        if event.is_canceled {
+            return Err(Error::EventAlreadyCanceled);
+        }
+
+        if env.ledger().timestamp() <= event.end_date {
+            return Err(Error::EventNotEnded);
+        }
+
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::FundsWithdrawn(event_id))
+        {
+            return Err(Error::FundsAlreadyWithdrawn);
+        }
+
+        // Mark withdrawn before transfer (checks-effects-interactions pattern)
+        env.storage()
+            .persistent()
+            .set(&DataKey::FundsWithdrawn(event_id), &true);
+        Self::extend_persistent_ttl(&env, &DataKey::FundsWithdrawn(event_id));
+
+        let balance: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::EventBalance(event_id))
+            .unwrap_or(0);
+
+        if balance > 0 {
+            let token_client = soroban_sdk::token::Client::new(&env, &event.payment_token);
+            token_client.transfer(&env.current_contract_address(), &event.organizer, &balance);
+        }
+
+        env.events().publish(
+            (Symbol::new(&env, "funds_withdrawn"),),
+            (event_id, event.organizer, balance),
+        );
+
+        Ok(())
+    }
+
+    // ========== Private helpers ==========
+
     fn validate_event_params(
         env: &Env,
         start_date: u64,
@@ -570,7 +647,6 @@ impl EventManager {
         if total_tickets == 0 {
             return Err(Error::InvalidTicketCount);
         }
-
         Ok(())
     }
 
@@ -588,7 +664,6 @@ impl EventManager {
         env.storage()
             .instance()
             .extend_ttl(Self::ttl_threshold(), Self::ttl_extend_to());
-
         Ok(current)
     }
 
