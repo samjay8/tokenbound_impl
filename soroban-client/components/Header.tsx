@@ -117,6 +117,7 @@ export default function Header() {
             </button>
           )}
 
+          <Link href="/create-event" className="bg-[#FF5722] hover:bg-[#F4511E] text-white px-6 py-2 rounded-lg font-bold shadow-md transition text-center inline-block">
           <Link
             href="/create-event"
             className="rounded-lg bg-[#FF5722] px-6 py-2 font-bold text-white shadow-md transition hover:bg-[#F4511E]"
@@ -212,6 +213,8 @@ export default function Header() {
 
             <Link
               href="/create-event"
+              onClick={handleMenuItemClick}
+              className="w-full block bg-[#FF5722] hover:bg-[#F4511E] text-white px-4 py-3 rounded-lg font-bold shadow-md transition text-center"
               onClick={() => handleMenuAction()}
               className="block w-full rounded-2xl bg-[#FF5722] px-4 py-4 text-center font-bold text-white shadow-md transition hover:bg-[#F4511E]"
             >

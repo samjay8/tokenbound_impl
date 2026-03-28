@@ -1,3 +1,7 @@
+import { Horizon, TransactionBuilder, Operation, Networks } from "@stellar/stellar-sdk";
+import { nativeToScVal } from "@stellar/stellar-base";
+import { signTransaction } from "@stellar/freighter-api";
+const { Server } = Horizon;
 import StellarSdk from "@stellar/stellar-sdk";
 import { nativeToScVal, scValToNative } from "@stellar/stellar-base";
 import { signTransaction } from "@stellar/freighter-api";
@@ -96,7 +100,8 @@ export async function createEvent(params: CreateEventParams) {
   });
 
   // submit to horizon and return the result
-  return await server.submitTransaction(signedTxXdr);
+  const signedTx = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE);
+  return await server.submitTransaction(signedTx as any);
 }
 
 export async function buyTickets(params: BuyTicketsParams) {
