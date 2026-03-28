@@ -47,8 +47,14 @@ type EventFormData = z.infer<typeof eventSchema>;
 
 export default function CreateEventPage() {
   const router = useRouter();
-  const { address, isConnected, isInstalled, connect } = useWallet();
+  const { address, isInstalled, connect, providerName, signTransaction } = useWallet();
 
+  const [theme, setTheme] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [price, setPrice] = useState("");
+  const [tickets, setTickets] = useState("");
   const [image, setImage] = useState<File | null>(null);
 
   const {
@@ -94,7 +100,7 @@ export default function CreateEventPage() {
         await connect();
         organizerAddress = localStorage.getItem("wallet_address");
       } else {
-        alert("Please install Freighter to create an event.");
+        alert(`Please install ${providerName} (or another Stellar wallet) to create an event.`);
         return;
       }
     }
@@ -130,6 +136,19 @@ export default function CreateEventPage() {
       // token contract address or allow user selection later.
       const paymentToken = "0000000000000000000000000000000000000000000000000000000000000000";
 
+      const res = await createEvent(
+        {
+          organizer,
+          theme,
+          eventType: description,
+          startTimeUnix: startUnix,
+          endTimeUnix: endUnix,
+          ticketPrice,
+          totalTickets,
+          paymentToken,
+        },
+        signTransaction
+      );
       const res = await createEvent({
         organizer,
         theme: data.theme,
@@ -145,8 +164,15 @@ export default function CreateEventPage() {
       setSuccessMsg("Event created (tx " + res.hash + ")");
       // Optionally redirect to dashboard or home after creation
       setTimeout(() => router.push("/"), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      if (err && typeof err === "object" && "message" in err) {
+        setErrorMsg((err as { message?: string }).message || "unknown error");
+      } else {
+        setErrorMsg("unknown error");
+      }
+    } finally {
+      setSubmitting(false);
       setErrorMsg(err.message || "unknown error");
     }
   };

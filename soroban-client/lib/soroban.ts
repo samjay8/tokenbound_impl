@@ -23,7 +23,7 @@ const EVENT_MANAGER_CONTRACT =
   process.env.NEXT_PUBLIC_EVENT_MANAGER_CONTRACT || "<MISSING_CONTRACT_ID>";
 
 export interface CreateEventParams {
-  organizer: string; // freighter address
+  organizer: string; // wallet address
   theme: string;
   eventType: string;
   startTimeUnix: number;
@@ -33,6 +33,10 @@ export interface CreateEventParams {
   paymentToken: string; // contract address for token used for payment
 }
 
+export type SignTransactionFn = (
+  txXdr: string,
+  options: { networkPassphrase: string; address: string }
+) => Promise<string>;
 export interface BuyTicketsParams {
   buyer: string;
   eventId: number;
@@ -44,12 +48,14 @@ export function isEventManagerConfigured() {
 }
 
 /**
- * Builds, signs (via Freighter) and submits a transaction to create a new
+ * Builds, signs (via provider adapter) and submits a transaction to create a new
  * event using the EventManager Soroban contract.
- *
- * The caller must have a Freighter wallet connected and the supplied
- * `organizer` address must match the source account in the wallet.
  */
+export async function createEvent(
+  params: CreateEventParams,
+  signTransactionFn: SignTransactionFn
+) {
+  if (EVENT_MANAGER_CONTRACT === "<MISSING_CONTRACT_ID>") {
 export async function createEvent(params: CreateEventParams) {
   if (!isEventManagerConfigured()) {
     throw new Error(
@@ -93,8 +99,8 @@ export async function createEvent(params: CreateEventParams) {
 
   const txXdr = tx.toXDR();
 
-  // ask Freighter to sign
-  const { signedTxXdr } = await signTransaction(txXdr, {
+  // ask configured wallet provider to sign
+  const signedTxXdr = await signTransactionFn(txXdr, {
     networkPassphrase: NETWORK_PASSPHRASE,
     address: params.organizer,
   });
