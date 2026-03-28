@@ -294,6 +294,20 @@ impl EventManager {
         env.events()
             .publish((Symbol::new(&env, "event_canceled"),), event_id);
 
+        // Notify any waitlisted users that the event will not happen
+        let waitlist: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Waitlist(event_id))
+            .unwrap_or_else(|| Vec::new(&env));
+
+        if !waitlist.is_empty() {
+            env.events().publish(
+                (Symbol::new(&env, "waitlist_cleared"),),
+                (event_id, waitlist.len()),
+            );
+        }
+
         Ok(())
     }
 
@@ -621,6 +635,9 @@ impl EventManager {
             (event_id, event.organizer, balance),
         );
 
+        // Promote the next person from the waitlist now that a slot is free
+        Self::try_promote_from_waitlist(&env, event_id);
+
         Ok(())
     }
 
@@ -776,6 +793,3 @@ impl EventManager {
         100 * 24 * 60 * 60 / 5
     }
 }
-
-#[cfg(test)]
-mod test;

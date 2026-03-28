@@ -526,6 +526,10 @@ fn test_withdraw_funds_double_withdrawal() {
     let env = Env::default();
     let (client, mock_addr) = setup(&env);
     let (_, event_id) = make_event(&env, &client, &mock_addr, Vec::new(&env));
+    // Event has 10 tickets, none sold — should fail
+    let result = client.try_join_waitlist(&Address::generate(&env), &event_id);
+    assert!(result.is_err());
+}
 
     client.purchase_ticket(&Address::generate(&env), &event_id, &0u32);
 
