@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import AnalyticsPageView from "@/components/AnalyticsPageView";
+import Header from "@/components/Header";
 import { useWallet } from "@/contexts/WalletContext";
 import { createEvent } from "@/lib/soroban";
 
@@ -45,14 +47,23 @@ export default function CreateEventPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    let organizerAddress = address;
+
     if (!address) {
       if (isInstalled) {
         await connect();
+        organizerAddress = localStorage.getItem("wallet_address");
       } else {
         alert("Please install Freighter to create an event.");
         return;
       }
     }
+
+    if (!organizerAddress) {
+      setErrorMsg("Connect your wallet before creating an event.");
+      return;
+    }
+
     const errs = validate();
     if (Object.keys(errs).length) {
       setErrors(errs);
@@ -64,7 +75,7 @@ export default function CreateEventPage() {
     setSuccessMsg("");
 
     try {
-      const organizer = address!;
+      const organizer = organizerAddress;
       const startUnix = Math.floor(new Date(startDate).getTime() / 1000);
       const endUnix = Math.floor(new Date(endDate).getTime() / 1000);
       const ticketPrice = BigInt(Math.floor(parseFloat(price) * 1_000_000));
@@ -98,26 +109,39 @@ export default function CreateEventPage() {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Create Event</h1>
+    <div className="min-h-screen bg-[#18181B] text-white">
+      <AnalyticsPageView page="create-event" />
+      <Header />
 
-      {successMsg && (
-        <div className="bg-green-100 text-green-800 p-2 mb-4">{successMsg}</div>
-      )}
-      {errorMsg && (
-        <div className="bg-red-100 text-red-800 p-2 mb-4">{errorMsg}</div>
-      )}
+      <div className="mx-auto max-w-3xl px-4 pb-20 pt-36 sm:px-6">
+        <div className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-xl shadow-black/20">
+          <h1 className="mb-2 text-3xl font-bold">Create Event</h1>
+          <p className="mb-6 text-zinc-300">
+            Launch a new CrowdPass experience with on-chain pricing, inventory, and
+            organizer ownership.
+          </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+          {successMsg && (
+            <div className="mb-4 rounded-2xl bg-green-500/15 p-3 text-green-200">
+              {successMsg}
+            </div>
+          )}
+          {errorMsg && (
+            <div className="mb-4 rounded-2xl bg-red-500/15 p-3 text-red-200">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Event Name
           </label>
           <input
             type="text"
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
           />
           {errors.theme && (
             <p className="text-red-600 text-sm">{errors.theme}</p>
@@ -125,26 +149,26 @@ export default function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Description
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
             rows={3}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Start Date &amp; Time
           </label>
           <input
             type="datetime-local"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
           />
           {errors.startDate && (
             <p className="text-red-600 text-sm">{errors.startDate}</p>
@@ -152,14 +176,14 @@ export default function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             End Date &amp; Time
           </label>
           <input
             type="datetime-local"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
           />
           {errors.endDate && (
             <p className="text-red-600 text-sm">{errors.endDate}</p>
@@ -167,7 +191,7 @@ export default function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Ticket Price (XLM)
           </label>
           <input
@@ -175,7 +199,7 @@ export default function CreateEventPage() {
             step="0.000001"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
           />
           {errors.price && (
             <p className="text-red-600 text-sm">{errors.price}</p>
@@ -183,14 +207,14 @@ export default function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Total Tickets
           </label>
           <input
             type="number"
             value={tickets}
             onChange={(e) => setTickets(e.target.value)}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            className="mt-1 block w-full rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 shadow-sm"
           />
           {errors.tickets && (
             <p className="text-red-600 text-sm">{errors.tickets}</p>
@@ -198,7 +222,7 @@ export default function CreateEventPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Event Image (optional)
           </label>
           <input
@@ -211,11 +235,13 @@ export default function CreateEventPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md disabled:opacity-50"
+          className="w-full rounded-2xl bg-[#FF5722] px-4 py-3 text-white transition hover:bg-[#F4511E] disabled:opacity-50"
         >
           {submitting ? "Creating..." : "Create Event"}
         </button>
-      </form>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
